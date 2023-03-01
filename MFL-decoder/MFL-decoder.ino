@@ -5,6 +5,13 @@ long unsigned int rxId;
 unsigned char len = 0;
 unsigned char rxBuf[8];
 
+unsigned long lastTime = 0;
+unsigned long currTime = 0;
+unsigned long timeDiff = 0;
+
+bool disableFlag = false;
+bool timeoutEnable = false;
+
 MCP_CAN CAN0(10);                          // Set CS to pin 10
 
 void setup()
@@ -13,6 +20,7 @@ void setup()
   if(CAN0.begin(MCP_STDEXT, CAN_500KBPS, MCP_8MHZ) == CAN_OK) Serial.print("MCP2515 Init Success\r\n");
   else Serial.print("MCP2515 Init Failed\r\n");
   pinMode(2, INPUT);                       // Setting pin 2 for /INT input
+  pinMode(3, OUTPUT);
 
   CAN0.init_Mask(0,0,0xFFFFFFFF);                // Init first mask...
   CAN0.init_Filt(0,0,0x00000000);                // Init first filter...
@@ -24,7 +32,8 @@ void setup()
   CAN0.init_Filt(4,0,0x01F70000);                // Init fifth filter...
   CAN0.init_Filt(5,0,0x01F70000);                // Init sixth filter...
 
-  CAN0.setMode(MCP_LISTENONLY);                // LISTEN ONLY
+  //CAN0.setMode(MCP_LISTENONLY);                // LISTEN ONLY
+  CAN0.setMode(MCP_NORMAL);                
 
   /*
   Use MCP_NORMAL for debugging and MCP_LISTENONLY for use in car. My analyzer will spam the message until it receives an ACK from MCP2515, hence slow response.
@@ -34,6 +43,18 @@ void setup()
 
 void loop()
 {
+    if (timeoutEnable)
+      timeDiff = abs(millis() - lastTime);    // only calculate diff when phone gets pressed.
+    if ( (timeDiff > 8200) && (timeDiff < 8210) && (lastTime != 0) && timeoutEnable) {
+      disableFlag = false;
+      lastTime = 0;
+      Serial.print("timeDiff = ");
+      Serial.println(timeDiff);
+      digitalWrite(3, disableFlag);
+      timeoutEnable = false;                // timeout will only work if phone button is pressed. this is to avoid timeout resets when phone was never pressed. 
+    }
+
+
     if(!digitalRead(2))                    // If pin 2 is low, read receive buffer
     {
       CAN0.readMsgBuf(&rxId, &len, rxBuf); // Read data: len = data length, buf = data byte(s)
@@ -49,24 +70,59 @@ void loop()
         Serial.print(rxBuf[i], HEX);
         Serial.print(" ");
       }*/
-      if((rxId == 0x1D6) && (rxBuf[0] == 0xF1)) {
-        Serial.println("PHONE");
+
+      if (disableFlag) {
+        if ( (rxId == 0x44C) && (rxBuf[0] == 0x10) ) {
+          Serial.println("Home display called, clearing disable flag");
+          disableFlag = false;
+          digitalWrite(3, disableFlag);
+        } else {
+          //Serial.println("Home display has not been called, still disabled. Ignoring commands");
+
+          if ((rxId == 0x1F7) && (rxBuf[0] == 0x80)) {
+            lastTime = millis(); //save current time
+            //Serial.println(lastTime);
+            //Serial.println("UP - ignored");
+          }
+          if ((rxId == 0x1F7) && (rxBuf[1] == 0xFD)) {
+            lastTime = millis(); //save current time
+            //Serial.println(lastTime);
+            //Serial.println("OK - ignored");
+          }
+          if ((rxId == 0x1F7) && (rxBuf[0] == 0x7E)) {
+            lastTime = millis(); //save current time
+            //Serial.println(lastTime);
+            //Serial.println("DOWN - ignored");
+          }
+
+
+        }
+      } else {
+        if ( (rxId == 0x1D6) && (rxBuf[0] == 0xF1) ) {
+          Serial.println("Phone button called, setting disable flag");
+          disableFlag = true;
+          timeoutEnable = true;
+          lastTime = millis(); //save current time
+          //Serial.println(lastTime);
+          digitalWrite(3, disableFlag);
+        } else {
+          //Serial.println("Something else was called, matching");
+          if ((rxId == 0x1F7) && (rxBuf[0] == 0x80)) {
+            lastTime = millis(); //save current time
+            //Serial.println(lastTime);
+            Serial.println("UP");
+          }
+          if ((rxId == 0x1F7) && (rxBuf[1] == 0xFD)) {
+            lastTime = millis(); //save current time
+            //Serial.println(lastTime);
+            Serial.println("OK");
+          }
+          if ((rxId == 0x1F7) && (rxBuf[0] == 0x7E)) {
+            lastTime = millis(); //save current time
+            //Serial.println(lastTime);
+            Serial.println("DOWN");
+          }
+        }
       }
-      if((rxId == 0x1D6) && (rxBuf[1] == 0xF1)) {
-        Serial.println("DICT");
-      }
-      if((rxId == 0x44C) && (rxBuf[0] == 0x10)) {
-        Serial.println("GO HOME");
-      }
-      if((rxId == 0x1F7) && (rxBuf[0] == 0x80)) {
-        Serial.println("UP");
-      }
-      if((rxId == 0x1F7) && (rxBuf[1] == 0xFD)) {
-        Serial.println("OK");
-      }
-      if((rxId == 0x1F7) && (rxBuf[0] == 0x7E)) {
-        Serial.println("DOWN");
-      }
-      //Serial.println();
     }
 }
