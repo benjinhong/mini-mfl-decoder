@@ -32,18 +32,28 @@ void setup() {
   pinMode(PLAYPAUSE_PIN, OUTPUT);
   pinMode(PREVIOUS_PIN, OUTPUT);
 
-  CAN0.init_Mask(0, 0, 0xFFFFFFFF);                // Init first mask
-  CAN0.init_Filt(0, 0, 0x00000000);                // Init first filter
-  CAN0.init_Filt(1, 0, 0x00000000);                // Init second filter
+  CAN0.init_Mask(0, 0, 0x07FF0000);                // Init first mask
+  CAN0.init_Filt(0, 0, 0x03660000);                // Init first filter: range
+  CAN0.init_Filt(1, 0, 0x00F30000);                // Init second filter: gear
   
   CAN0.init_Mask(1, 0, 0x07FF0000);                // Init second mask
-  CAN0.init_Filt(2, 0, 0x044C0000);                // Init third filter
-  CAN0.init_Filt(3, 0, 0x01D60000);                // Init fourth filter
-  CAN0.init_Filt(4, 0, 0x01F70000);                // Init fifth filter
-  CAN0.init_Filt(5, 0, 0x01F70000);                // Init sixth filter
+  CAN0.init_Filt(2, 0, 0x044C0000);                // Init third filter: display calls
+  CAN0.init_Filt(3, 0, 0x01D60000);                // Init fourth filter: dictation and phone
+  CAN0.init_Filt(4, 0, 0x01F70000);                // Init fifth filter: up/ok/down
+  CAN0.init_Filt(5, 0, 0x01F70000);                // Init sixth filter: same to disable
 
-  //CAN0.setMode(MCP_LISTENONLY);                // LISTEN ONLY
-  CAN0.setMode(MCP_NORMAL);                
+  /*CAN0.init_Mask(0, 0, 0x07FF0000);                // Init first mask
+  CAN0.init_Filt(0, 0, 0x03660000);                // Init first filter: range
+  CAN0.init_Filt(1, 0, 0x03660000);                // Init second filter: gear
+  
+  CAN0.init_Mask(1, 0, 0xFFFFFFFF);                // Init second mask
+  CAN0.init_Filt(2, 0, 0x00000000);                // Init third filter: display calls
+  CAN0.init_Filt(3, 0, 0x00000000);                // Init fourth filter: dictation and phone
+  CAN0.init_Filt(4, 0, 0x00000000);                // Init fifth filter: up/ok/down
+  CAN0.init_Filt(5, 0, 0x00000000);                // Init sixth filter: same to disable*/
+
+  CAN0.setMode(MCP_LISTENONLY);                // LISTEN ONLY
+  //CAN0.setMode(MCP_NORMAL);                
 
   /*
   Use MCP_NORMAL for debugging and MCP_LISTENONLY for use in car. My analyzer will spam the message until it receives an ACK from MCP2515, hence slow response.
@@ -77,7 +87,7 @@ void loop() {
 
             if (debug) Serial.println("Home display called, clearing disable flag");
         } else {
-            matchAndSet(rxId, rxBuf, disableFlag, lastTime);
+            matchAndSet(rxId, rxBuf, disableFlag, lastTime); // take time but don't do anything
 
             if (debug) Serial.println("ignoring commands but still noting time");
         }
@@ -90,7 +100,7 @@ void loop() {
 
             if (debug) Serial.println("Phone button called, setting disable flag");
         } else {
-            matchAndSet(rxId, rxBuf, disableFlag, lastTime);
+            matchAndSet(rxId, rxBuf, disableFlag, lastTime);  // normal command parsing
         }
       }
     }
@@ -122,6 +132,19 @@ void matchAndSet(long unsigned int id, unsigned char buf[], bool flag, unsigned 
           digitalWrite(PREVIOUS_PIN, 1);
           delay(buttonDelay);
           digitalWrite(PREVIOUS_PIN, 0);
+        }
+    }
+
+    if (id == 0x366) {
+        time = millis();                          // always update time regardless of mode
+        if (!flag) {
+          if (debug) Serial.print("RANGE: ");
+
+          short int x = (buf[2] << 4) | (buf[1] >> 4);
+          Serial.print(x, HEX);
+          Serial.print(" = ");
+          Serial.print(x);
+          Serial.println("mi");
         }
     }
 }
