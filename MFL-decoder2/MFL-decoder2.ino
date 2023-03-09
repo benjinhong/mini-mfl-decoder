@@ -13,7 +13,9 @@ bool disableFlag = false;
 bool timeoutEnable = false;
 
 bool debug = 1;
+bool listenOnly = 1;  // ALWAYS 1 for when in the car
 int buttonDelay = 70;
+short int range = 0;
 
 #define PLAYPAUSE_PIN 7
 #define NEXT_PIN 4
@@ -52,8 +54,13 @@ void setup() {
   CAN0.init_Filt(4, 0, 0x00000000);                // Init fifth filter: up/ok/down
   CAN0.init_Filt(5, 0, 0x00000000);                // Init sixth filter: same to disable*/
 
-  CAN0.setMode(MCP_LISTENONLY);                // LISTEN ONLY
-  //CAN0.setMode(MCP_NORMAL);                
+  if (listenOnly) {
+    CAN0.setMode(MCP_LISTENONLY);                // LISTEN ONLY
+    if (debug) Serial.println("MCP_LISTENONLY");
+  } else {
+    CAN0.setMode(MCP_NORMAL);      
+    if (debug) Serial.println("MCP_NORMAL");
+  }          
 
   /*
   Use MCP_NORMAL for debugging and MCP_LISTENONLY for use in car. My analyzer will spam the message until it receives an ACK from MCP2515, hence slow response.
@@ -103,6 +110,16 @@ void loop() {
             matchAndSet(rxId, rxBuf, disableFlag, lastTime);  // normal command parsing
         }
       }
+
+      if (rxId == 0x366) {  // bypasses all checks. if it gets range data (0x366), always process it. used to be inside matchAndSet
+        range = (rxBuf[2] << 4) | (rxBuf[1] >> 4);
+        if (debug) { Serial.print(range, HEX); Serial.print(" = "); Serial.print(range); Serial.println("mi"); }
+        // do stuff with range here
+      }
+
+      if (rxId == 0x0F3) {  // gear testing area
+      }
+
     }
 }
 
@@ -132,19 +149,6 @@ void matchAndSet(long unsigned int id, unsigned char buf[], bool flag, unsigned 
           digitalWrite(PREVIOUS_PIN, 1);
           delay(buttonDelay);
           digitalWrite(PREVIOUS_PIN, 0);
-        }
-    }
-
-    if (id == 0x366) {
-        time = millis();                          // always update time regardless of mode
-        if (!flag) {
-          if (debug) Serial.print("RANGE: ");
-
-          short int x = (buf[2] << 4) | (buf[1] >> 4);
-          Serial.print(x, HEX);
-          Serial.print(" = ");
-          Serial.print(x);
-          Serial.println("mi");
         }
     }
 }
