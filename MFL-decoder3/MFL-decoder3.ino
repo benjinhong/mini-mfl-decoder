@@ -1,9 +1,10 @@
 #include <mcp_can.h>
 #include <SPI.h>
+#include <SoftwareSerial.h>
 
 #include <Wire.h>
-#include "SSD1306Ascii.h"
-#include "SSD1306AsciiWire.h"
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
 
 long unsigned int rxId;
 unsigned char len = 0;
@@ -21,27 +22,50 @@ bool listenOnly = 0;  // ALWAYS 1 for when in the car
 int buttonDelay = 70;
 short int range = 0;
 
-#define PLAYPAUSE_PIN 7
-#define NEXT_PIN 4
-#define PREVIOUS_PIN 8
 #define PHONE_FLAG_PIN 9
 
-#define I2C_ADDRESS 0x3C
-#define RST_PIN -1
+#define rxPin 7
+#define txPin 8
+
+#define SCREEN_WIDTH 128 // OLED display width, in pixels
+#define SCREEN_HEIGHT 32 // OLED display height, in pixels
+
+#define OLED_RESET     -1 // Reset pin # (or -1 if sharing Arduino reset pin)
+#define SCREEN_ADDRESS 0x3C ///< See datasheet for Address; 0x3D for 128x64, 0x3C for 128x32
 
 MCP_CAN CAN0(10);                          // Set CS to pin 10
 
-SSD1306AsciiWire oled;
+SoftwareSerial bt = SoftwareSerial(rxPin, txPin);
+
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+
+static const unsigned char PROGMEM fuel_icon [] = {
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x7F, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x09, 0x80,
+0x00, 0x00, 0xF8, 0x00, 0x00, 0x03, 0xFC, 0x00, 0x00, 0x07, 0xFE, 0x00, 0x00, 0x1F, 0xFC, 0x00,
+0x00, 0x3F, 0xFC, 0x00, 0x00, 0x3F, 0xFC, 0x00, 0x00, 0x3F, 0xFC, 0x00, 0x00, 0x7F, 0xFE, 0x00,
+0x00, 0x60, 0xFE, 0x00, 0x00, 0xC0, 0x7E, 0x00, 0x01, 0x80, 0x3C, 0x00, 0x03, 0x01, 0xF8, 0x00,
+0x06, 0x00, 0x30, 0x00, 0x0C, 0x04, 0x20, 0x00, 0x1C, 0x00, 0x40, 0x00, 0x34, 0x08, 0x80, 0x00,
+0x62, 0x01, 0x00, 0x00, 0x61, 0x12, 0x00, 0x00, 0x60, 0x84, 0x00, 0x00, 0xE0, 0x38, 0x00, 0x00,
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+};
 
 void setup() {
   Serial.begin(115200);
   if (CAN0.begin(MCP_STDEXT, CAN_500KBPS, MCP_8MHZ) == CAN_OK) Serial.print("MCP2515 Init Success\r\n");
   else Serial.print("MCP2515 Init Failed\r\n");
+
+  if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
+    Serial.println(F("SSD1306 allocation failed"));
+    for(;;); // Don't proceed, loop forever
+  }
+
+  displayWaiting();
+
   pinMode(2, INPUT);                       // Setting pin 2 for /INT input
   pinMode(PHONE_FLAG_PIN, OUTPUT);
-  pinMode(NEXT_PIN, OUTPUT);
-  pinMode(PLAYPAUSE_PIN, OUTPUT);
-  pinMode(PREVIOUS_PIN, OUTPUT);
+
+  bt.begin(115200);
 
   CAN0.init_Mask(0, 0, 0x07FF0000);                // Init first mask
   CAN0.init_Filt(0, 0, 0x03660000);                // Init first filter: range
@@ -62,22 +86,6 @@ void setup() {
   CAN0.init_Filt(3, 0, 0x00000000);                // Init fourth filter: dictation and phone
   CAN0.init_Filt(4, 0, 0x00000000);                // Init fifth filter: up/ok/down
   CAN0.init_Filt(5, 0, 0x00000000);                // Init sixth filter: same to disable*/
-
-  Wire.begin();
-  Wire.setClock(400000L);
-
-  #if RST_PIN >= 0
-    oled.begin(&Adafruit128x32, I2C_ADDRESS, RST_PIN);
-  #else // RST_PIN >= 0
-    oled.begin(&Adafruit128x32, I2C_ADDRESS);
-  #endif // RST_PIN >= 0
-
-  oled.setFont(Adafruit5x7);
-
-  oled.clear();
-  oled.set2X();
-  oled.println("Waiting for");
-  oled.println("CAN bus...");
 
   if (listenOnly) {
     CAN0.setMode(MCP_LISTENONLY);                // LISTEN ONLY
@@ -140,11 +148,19 @@ void loop() {
         range = (rxBuf[2] << 4) | (rxBuf[1] >> 4);
         if (debug) { Serial.print(range, HEX); Serial.print(" = "); Serial.print(range); Serial.println("mi"); }
         // do stuff with range here
-        oled.clear();
-        oled.set2X();
-        oled.print("Range:");
-        oled.print(range);
-        oled.println("mi");
+        
+        display.clearDisplay();
+        display.drawBitmap(0, 0, fuel_icon, 32, 32, 1);
+        display.setTextSize(2);
+        display.setTextColor(WHITE);
+        display.setCursor(50, 0); //can manually place "mi" depending on size of range. 1, 2, or 3 digits.
+        display.print(range);
+        display.println("mi");
+
+        display.setTextSize(2);
+        display.setCursor(50, 18);
+        display.println("+5mi"); //maybe put delta symbol next to change?
+        display.display();
       }
 
       if (rxId == 0x0F3) {  // gear testing area
@@ -158,27 +174,21 @@ void matchAndSet(long unsigned int id, unsigned char buf[], bool flag, unsigned 
         time = millis();                          // always update time regardless of mode
         if (!flag) {
           if (debug) Serial.println("UP");
-          digitalWrite(NEXT_PIN, 1);
-          delay(buttonDelay);
-          digitalWrite(NEXT_PIN, 0);
+          bt.println("AT+CC");  //next track
         }
     } 
     if ((id == 0x1F7) && (buf[1] == 0xFD)) {
         time = millis();                          // always update time regardless of mode
         if (!flag) {
           if (debug) Serial.println("OK");
-          digitalWrite(PLAYPAUSE_PIN, 1);
-          delay(buttonDelay);
-          digitalWrite(PLAYPAUSE_PIN, 0);
+          bt.println("AT+CB"); //play pause
         }
     } 
     if ((id == 0x1F7) && (buf[0] == 0x7E)) {
         time = millis();                          // always update time regardless of mode
         if (!flag) {
           if (debug) Serial.println("DOWN");
-          digitalWrite(PREVIOUS_PIN, 1);
-          delay(buttonDelay);
-          digitalWrite(PREVIOUS_PIN, 0);
+          bt.println("AT+CD"); //previous song
         }
     }
 }
@@ -197,6 +207,17 @@ void printData(long unsigned int id, unsigned char length, unsigned char buf[]) 
     Serial.print(" ");
     }
     Serial.println();
+}
+
+void displayWaiting() {
+  display.clearDisplay();
+  display.setTextSize(2);
+  display.setTextColor(WHITE);
+  display.setCursor(0, 0);
+  display.println("Waiting on");
+  display.setCursor(0, 16);
+  display.println("CAN bus...");
+  display.display();
 }
 
 
