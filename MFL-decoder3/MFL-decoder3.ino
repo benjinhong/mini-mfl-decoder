@@ -19,8 +19,9 @@ bool timeoutEnable = false;
 
 bool debug = 1;
 bool listenOnly = 0;  // ALWAYS 1 for when in the car
-int buttonDelay = 70;
 short int range = 0;
+short int lastRange = 0;
+short int rangeDelta = 0;
 
 #define PHONE_FLAG_PIN 9
 
@@ -148,6 +149,9 @@ void loop() {
         range = (rxBuf[2] << 4) | (rxBuf[1] >> 4);
         if (debug) { Serial.print(range, HEX); Serial.print(" = "); Serial.print(range); Serial.println("mi"); }
         // do stuff with range here
+
+        rangeDelta = range - lastRange;
+        lastRange = range;
         
         display.clearDisplay();
         display.drawBitmap(0, 0, fuel_icon, 32, 32, 1);
@@ -159,7 +163,10 @@ void loop() {
 
         display.setTextSize(2);
         display.setCursor(50, 18);
-        display.println("+5mi"); //maybe put delta symbol next to change?
+        if (rangeDelta >= 0)  display.print("+");
+        else                  display.print("-");
+        display.print(rangeDelta);
+        display.println("mi");
         display.display();
       }
 
