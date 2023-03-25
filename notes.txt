@@ -1,0 +1,2 @@
+decoder3 works with serial command, but it was found to be noisy.
+decoder4 is back to direct pin control.
