@@ -23,11 +23,10 @@ short int range = 0;
 short int lastRange = 0;
 short int rangeDelta = 0;
 
-#define PHONE_FLAG_PIN 9
 #define PLAYPAUSE_PIN 7
 #define NEXT_PIN 4
 #define PREVIOUS_PIN 8
-#define PHONE_FLAG_PIN 9
+#define PHONE_FLAG_PIN 3
 
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 32 // OLED display height, in pixels
@@ -150,21 +149,27 @@ void loop() {
         rangeDelta = range - lastRange;
         lastRange = range;
         
-        display.clearDisplay();
-        display.drawBitmap(0, 0, fuel_icon, 32, 32, 1);
-        display.setTextSize(2);
-        display.setTextColor(WHITE);
-        display.setCursor(50, 0); //can manually place "mi" depending on size of range. 1, 2, or 3 digits.
-        display.print(range);
-        display.println("mi");
+        if (rangeDelta != 0) {             // delta persists until it changes
+          display.clearDisplay();
+          display.drawBitmap(0, 0, fuel_icon, 32, 32, 1);
+          display.setTextSize(2);
+          display.setTextColor(WHITE);
+          display.setCursor(50, 0); //can manually place "mi" depending on size of range. 1, 2, or 3 digits.
+          display.print(range);
+          display.println("mi");
+          display.display();      //display range
 
-        display.setTextSize(2);
-        display.setCursor(50, 18);
-        if (rangeDelta >= 0)  display.print("+");
-        else                  display.print("-");
-        display.print(rangeDelta);
-        display.println("mi");
-        display.display();
+          if (rangeDelta != range) {                  //if delta and range arent the same (shows at boot) then begin showing range
+            if (rangeDelta >= 0)  display.print("+"); //display "+" if positive, else "-" if negative
+            else                  display.print("-");
+
+            display.setTextSize(2);
+            display.setCursor(50, 18);
+            display.print(rangeDelta);
+            display.println("mi");
+            display.display();
+          }
+        }
       }
 
       if (rxId == 0x0F3) {  // gear testing area
