@@ -128,27 +128,30 @@ void matchAndSet(long unsigned int id, unsigned char buf[], bool flag, unsigned 
         time = millis();                          // always update time regardless of mode
         if (!flag) {
           if (debug) Serial.println("UP");
-          digitalWrite(NEXT_PIN, 1);
+          pinMode(NEXT_PIN, OUTPUT);
+          digitalWrite(NEXT_PIN, LOW);
           delay(buttonDelay);
-          digitalWrite(NEXT_PIN, 0);
+          pinMode(NEXT_PIN, INPUT);
         }
     } 
     if ((id == 0x1F7) && (buf[1] == 0xFD)) {
         time = millis();                          // always update time regardless of mode
         if (!flag) {
           if (debug) Serial.println("OK");
-          digitalWrite(PLAYPAUSE_PIN, 1);
+          pinMode(PLAYPAUSE_PIN, OUTPUT);
+          digitalWrite(PLAYPAUSE_PIN, LOW);
           delay(buttonDelay);
-          digitalWrite(PLAYPAUSE_PIN, 0);
+          pinMode(PLAYPAUSE_PIN, INPUT);
         }
     } 
     if ((id == 0x1F7) && (buf[0] == 0x7E)) {
         time = millis();                          // always update time regardless of mode
         if (!flag) {
           if (debug) Serial.println("DOWN");
-          digitalWrite(PREVIOUS_PIN, 1);
+          pinMode(PREVIOUS_PIN, OUTPUT);
+          digitalWrite(PREVIOUS_PIN, LOW);
           delay(buttonDelay);
-          digitalWrite(PREVIOUS_PIN, 0);
+          pinMode(PREVIOUS_PIN, INPUT);
         }
     }
 }
