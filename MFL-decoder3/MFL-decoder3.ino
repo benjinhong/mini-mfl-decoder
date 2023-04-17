@@ -1,3 +1,7 @@
+/*
+Version 3 includes OLED fuel icon only. Range works but does not have the fix where it ignores if incoming range data didn't change.
+*/
+
 #include <mcp_can.h>
 #include <SPI.h>
 #include <SoftwareSerial.h>
@@ -18,7 +22,7 @@ bool disableFlag = false;
 bool timeoutEnable = false;
 
 bool debug = 1;
-bool listenOnly = 0;  // ALWAYS 1 for when in the car
+bool listenOnly = 1;  // ALWAYS 1 for when in the car
 short int range = 0;
 short int lastRange = 0;
 short int rangeDelta = 0;
