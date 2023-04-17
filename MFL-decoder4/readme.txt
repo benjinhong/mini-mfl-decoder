@@ -1,0 +1,1 @@
+accidently broke this. just use it for its bitmap for the MINI logo.
