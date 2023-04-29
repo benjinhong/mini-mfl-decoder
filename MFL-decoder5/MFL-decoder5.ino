@@ -4,6 +4,7 @@ Version 5 is the latest working version without OLED splash screen. Includes (ba
 
 #include <mcp_can.h>
 #include <SPI.h>
+#include <SoftwareSerial.h>
 
 long unsigned int rxId;
 unsigned char len = 0;
@@ -17,36 +18,42 @@ bool disableFlag = false;
 bool timeoutEnable = false;
 
 bool debug = 1;
-bool listenOnly = 1;  // ALWAYS 1 for when in the car
-int buttonDelay = 100;
+bool listenOnly = 0;  // ALWAYS 1 for when in the car
 short int range = 0;
 short int lastRange = 0;
 short int rangeDelta = 0;
 
-#define PLAYPAUSE_PIN 7
-#define NEXT_PIN 4
-#define PREVIOUS_PIN 8
 #define PHONE_FLAG_PIN 3
+#define MCP2515_INT_PIN 2
+#define AUDIO_TX 8
+#define AUDIO_RX 7
+#define BT_TX 6
+#define BT_RX 5
 
 MCP_CAN CAN0(10);                          // Set CS to pin 10
 
+SoftwareSerial audio = SoftwareSerial(AUDIO_RX, AUDIO_TX);
+SoftwareSerial bt = SoftwareSerial(BT_RX, BT_TX);
+
 void setup() {
   Serial.begin(115200);
+  bt.begin(115200);
+  audio.begin(115200);
   if (CAN0.begin(MCP_STDEXT, CAN_500KBPS, MCP_8MHZ) == CAN_OK) Serial.print("MCP2515 Init Success\r\n");
   else Serial.print("MCP2515 Init Failed\r\n");
 
-  pinMode(2, INPUT);                       // Setting pin 2 for /INT input
+  pinMode(MCP2515_INT_PIN, INPUT);                       // Setting pin 2 for /INT input
   pinMode(PHONE_FLAG_PIN, OUTPUT);
 
   CAN0.init_Mask(0, 0, 0x07FF0000);                // Init first mask
   CAN0.init_Filt(0, 0, 0x03660000);                // Init first filter: range
-  CAN0.init_Filt(1, 0, 0x00F30000);                // Init second filter: gear
+  CAN0.init_Filt(1, 0, 0x03F90000);                // Init second filter: gear (byte 6)
   
   CAN0.init_Mask(1, 0, 0x07FF0000);                // Init second mask
   CAN0.init_Filt(2, 0, 0x044C0000);                // Init third filter: display calls
   CAN0.init_Filt(3, 0, 0x01D60000);                // Init fourth filter: dictation and phone
   CAN0.init_Filt(4, 0, 0x01F70000);                // Init fifth filter: up/ok/down
-  CAN0.init_Filt(5, 0, 0x01F70000);                // Init sixth filter: same to disable
+  CAN0.init_Filt(5, 0, 0x036B0000);                // Init sixth filter: TPMS
 
   /*CAN0.init_Mask(0, 0, 0x07FF0000);                // Init first mask
   CAN0.init_Filt(0, 0, 0x03660000);                // Init first filter: range
@@ -122,9 +129,26 @@ void loop() {
 
         rangeDelta = range - lastRange;
         lastRange = range;
+        bt.print("Range: ");
+        bt.print(range);
+        bt.println("mi");
       }
 
-      if (rxId == 0x0F3) {  // gear testing area
+      if (rxId == 0x3F9) {  // gear
+        bt.print("Gear: ");
+        bt.println(rxBuf[6], HEX);
+      }
+
+      if (rxId == 0x36B) {  // TMPS
+        bt.print("TPMS: ");
+        bt.print(rxBuf[0], HEX);
+        bt.print(" ");
+        bt.print(rxBuf[2], HEX);
+        bt.print(" ");
+        bt.print(rxBuf[4], HEX);
+        bt.print(" ");
+        bt.print(rxBuf[6], HEX);
+        bt.println(" ");
       }
 
     }
@@ -135,30 +159,21 @@ void matchAndSet(long unsigned int id, unsigned char buf[], bool flag, unsigned 
         time = millis();                          // always update time regardless of mode
         if (!flag) {
           if (debug) Serial.println("UP");
-          pinMode(NEXT_PIN, OUTPUT);
-          digitalWrite(NEXT_PIN, LOW);
-          delay(buttonDelay);
-          pinMode(NEXT_PIN, INPUT);
+          audio.println("AT+CC");  //next track
         }
     } 
     if ((id == 0x1F7) && (buf[1] == 0xFD)) {
         time = millis();                          // always update time regardless of mode
         if (!flag) {
           if (debug) Serial.println("OK");
-          pinMode(PLAYPAUSE_PIN, OUTPUT);
-          digitalWrite(PLAYPAUSE_PIN, LOW);
-          delay(buttonDelay);
-          pinMode(PLAYPAUSE_PIN, INPUT);
+          audio.println("AT+CB"); //play pause
         }
     } 
     if ((id == 0x1F7) && (buf[0] == 0x7E)) {
         time = millis();                          // always update time regardless of mode
         if (!flag) {
           if (debug) Serial.println("DOWN");
-          pinMode(PREVIOUS_PIN, OUTPUT);
-          digitalWrite(PREVIOUS_PIN, LOW);
-          delay(buttonDelay);
-          pinMode(PREVIOUS_PIN, INPUT);
+          audio.println("AT+CD"); //previous song
         }
     }
 }
