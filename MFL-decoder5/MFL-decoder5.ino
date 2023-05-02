@@ -129,18 +129,17 @@ void loop() {
 
         rangeDelta = range - lastRange;
         lastRange = range;
-        bt.print("Range: ");
-        bt.print(range);
-        bt.println("mi");
+        bt.print("R");
+        bt.println(range);
       }
 
       if (rxId == 0x3F9) {  // gear
-        bt.print("Gear: ");
+        bt.print("G");
         bt.println(rxBuf[6], HEX);
       }
 
       if (rxId == 0x36B) {  // TMPS
-        bt.print("TPMS: ");
+        /*bt.print("TPMS: ");
         bt.print(rxBuf[0], HEX);
         bt.print(" ");
         bt.print(rxBuf[2], HEX);
@@ -148,7 +147,7 @@ void loop() {
         bt.print(rxBuf[4], HEX);
         bt.print(" ");
         bt.print(rxBuf[6], HEX);
-        bt.println(" ");
+        bt.println(" ");*/
       }
 
     }
