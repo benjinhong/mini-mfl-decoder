@@ -26,6 +26,7 @@ short int rangeDelta = 0;
 
 #define PHONE_FLAG_PIN 3
 #define MCP2515_INT_PIN 2
+#define PLAYPAUSE_PIN 7
 #define NEXT_PIN 4
 #define PREVIOUS_PIN 8
 #define PHONE_FLAG_PIN 9
