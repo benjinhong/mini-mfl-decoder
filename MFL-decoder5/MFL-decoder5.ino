@@ -16,8 +16,9 @@ unsigned long timeDiff = 0;
 
 bool disableFlag = false;
 bool timeoutEnable = false;
+int buttonDelay = 130;
 
-bool debug = 1;
+bool debug = 0;
 bool listenOnly = 0;  // ALWAYS 1 for when in the car
 short int range = 0;
 short int lastRange = 0;
@@ -25,20 +26,19 @@ short int rangeDelta = 0;
 
 #define PHONE_FLAG_PIN 3
 #define MCP2515_INT_PIN 2
-#define AUDIO_TX 8
-#define AUDIO_RX 7
+#define NEXT_PIN 4
+#define PREVIOUS_PIN 8
+#define PHONE_FLAG_PIN 9
 #define BT_TX 6
 #define BT_RX 5
 
 MCP_CAN CAN0(10);                          // Set CS to pin 10
 
-SoftwareSerial audio = SoftwareSerial(AUDIO_RX, AUDIO_TX);
 SoftwareSerial bt = SoftwareSerial(BT_RX, BT_TX);
 
 void setup() {
   Serial.begin(115200);
   bt.begin(115200);
-  audio.begin(115200);
   if (CAN0.begin(MCP_STDEXT, CAN_500KBPS, MCP_8MHZ) == CAN_OK) Serial.print("MCP2515 Init Success\r\n");
   else Serial.print("MCP2515 Init Failed\r\n");
 
@@ -134,6 +134,7 @@ void loop() {
       }
 
       if (rxId == 0x3F9) {  // gear
+        if (debug) { Serial.print("Gear: "); Serial.println(rxBuf[6], HEX); }
         bt.print("G");
         bt.println(rxBuf[6], HEX);
       }
@@ -150,6 +151,11 @@ void loop() {
         bt.println(" ");*/
       }
 
+      if ((rxId == 0x1D6) && (rxBuf[1] == 0xF1)) {
+        if (debug) Serial.println("Dictation button pressed");
+        bt.println("DICT");
+      }
+
     }
 }
 
@@ -158,21 +164,30 @@ void matchAndSet(long unsigned int id, unsigned char buf[], bool flag, unsigned 
         time = millis();                          // always update time regardless of mode
         if (!flag) {
           if (debug) Serial.println("UP");
-          audio.println("AT+CC");  //next track
+          pinMode(NEXT_PIN, OUTPUT);
+          digitalWrite(NEXT_PIN, LOW);
+          delay(buttonDelay);
+          pinMode(NEXT_PIN, INPUT);
         }
     } 
     if ((id == 0x1F7) && (buf[1] == 0xFD)) {
         time = millis();                          // always update time regardless of mode
         if (!flag) {
           if (debug) Serial.println("OK");
-          audio.println("AT+CB"); //play pause
+          pinMode(PLAYPAUSE_PIN, OUTPUT);
+          digitalWrite(PLAYPAUSE_PIN, LOW);
+          delay(buttonDelay);
+          pinMode(PLAYPAUSE_PIN, INPUT);
         }
     } 
     if ((id == 0x1F7) && (buf[0] == 0x7E)) {
         time = millis();                          // always update time regardless of mode
         if (!flag) {
           if (debug) Serial.println("DOWN");
-          audio.println("AT+CD"); //previous song
+          pinMode(PREVIOUS_PIN, OUTPUT);
+          digitalWrite(PREVIOUS_PIN, LOW);
+          delay(buttonDelay);
+          pinMode(PREVIOUS_PIN, INPUT);
         }
     }
 }
@@ -192,6 +207,3 @@ void printData(long unsigned int id, unsigned char length, unsigned char buf[]) 
     }
     Serial.println();
 }
-
-
-
