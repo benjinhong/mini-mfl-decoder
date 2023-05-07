@@ -41,11 +41,11 @@ SoftwareSerial bt = SoftwareSerial(BT_RX, BT_TX);
 
 void setup() {
   Serial.begin(115200);
-  bt.begin(115200);
+  bt.begin(9600);
   if (CAN0.begin(MCP_STDEXT, CAN_500KBPS, MCP_8MHZ) == CAN_OK) Serial.print("MCP2515 Init Success\r\n");
   else Serial.print("MCP2515 Init Failed\r\n");
 
-  pinMode(MCP2515_INT_PIN, INPUT);                       // Setting pin 2 for /INT input
+  pinMode(MCP2515_INT_PIN, INPUT);                 // Setting pin 2 for /INT input
   pinMode(PHONE_FLAG_PIN, OUTPUT);
 
   CAN0.init_Mask(0, 0, 0x07FF0000);                // Init first mask
@@ -133,17 +133,17 @@ void loop() {
         rangeDelta = range - lastRange;
         lastRange = range;
         bt.print("R");
-        bt.println(range);
+        bt.print(range);
       }
 
       if (rxId == 0x3F9) {  // gear
         if (debug) { Serial.print("Gear: "); Serial.println(rxBuf[6], HEX); }
         bt.print("G");
-        bt.println(rxBuf[6], HEX);
+        bt.print(rxBuf[6], HEX);
       }
 
-      if (rxId == 0x36B) {  // TMPS
-        /*bt.print("TPMS: ");
+      /*if (rxId == 0x36B) {  // TPMS
+        bt.print("TPMS: ");
         bt.print(rxBuf[0], HEX);
         bt.print(" ");
         bt.print(rxBuf[2], HEX);
@@ -151,14 +151,14 @@ void loop() {
         bt.print(rxBuf[4], HEX);
         bt.print(" ");
         bt.print(rxBuf[6], HEX);
-        bt.println(" ");*/
-      }
+        bt.println(" ");
+      }*/
 
       if ((rxId == 0x1D6) && (rxBuf[1] == 0xF1)) {  // dictation button
         timeDiff_dict = abs(millis() - lastTime_dict); //debouncing logic
         if (timeDiff_dict > 250) { //must be at least 250ms since last press
           if (debug) { Serial.print("Dictation button pressed. ms since last press: "); Serial.println(timeDiff_dict); }
-          bt.println("D");
+          bt.print("D");
           lastTime_dict = millis();
         }
       }
