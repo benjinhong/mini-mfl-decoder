@@ -13,7 +13,7 @@ const unsigned char recvBufSize = 5;
 unsigned short int range; // 0 ~ 65535
 unsigned char gear;       // 0 ~ 255
 bool displayFlag = 1;     // what to display at startup
-bool debug = 0;           // enable/disable debug messages
+bool debug = 1;           // enable/disable debug messages
 char buffer[recvBufSize]; // second serial buffer
 
 const unsigned char nt[] =        {0x40, 0x54, 0x78, 0x40};
