@@ -34,6 +34,7 @@ void setup() {
 
   for (int i = 0; i < 4; i++) {
     startupAnim[i] = 0x40;
+    if (i > 0) startupAnim[i-1] = 0x00;
     display.setSegments(startupAnim);
     delay(50);
   }
