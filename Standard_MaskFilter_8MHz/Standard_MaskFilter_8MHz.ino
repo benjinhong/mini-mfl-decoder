@@ -54,15 +54,15 @@ void setup()
   pinMode(2, INPUT);                       // Setting pin 2 for /INT input
 
 
-  CAN0.init_Mask(0, 0, 0x07FF0000);                // Init first mask
-  CAN0.init_Filt(0, 0, 0x03660000);                // Init first filter: range
-  CAN0.init_Filt(1, 0, 0x03660000);                // Init second filter: gear
+  CAN0.init_Mask(0, 0, 0x07FF0000);                // Init first mask. Only listen to these from 1xx
+  CAN0.init_Filt(0, 0, 0x01F70000);                // Init first filter: MFL up/ok/down
+  CAN0.init_Filt(1, 0, 0x01D60000);                // Init second filter: MFL dict/phone
   
-  CAN0.init_Mask(1, 0, 0xFFFFFFFF);                // Init second mask
-  CAN0.init_Filt(2, 0, 0x00000000);                // Init third filter: display calls
-  CAN0.init_Filt(3, 0, 0x00000000);                // Init fourth filter: dictation and phone
-  CAN0.init_Filt(4, 0, 0x00000000);                // Init fifth filter: up/ok/down
-  CAN0.init_Filt(5, 0, 0x00000000);                // Init sixth filter: same to disable
+  CAN0.init_Mask(1, 0, 0x07000000);                // Init second mask. Listen to all IDs that start with the following numbers:
+  CAN0.init_Filt(2, 0, 0x03000000);                // Init third filter: 3xx
+  CAN0.init_Filt(3, 0, 0x04000000);                // Init fourth filter: 4xx
+  CAN0.init_Filt(4, 0, 0x04000000);                // Init fifth filter: 4xx
+  CAN0.init_Filt(5, 0, 0x04000000);                // Init sixth filter: 4xx
   
   Serial.println("MCP2515 Library Mask & Filter Example...");
   CAN0.setMode(MCP_NORMAL);                // Change to normal mode to allow messages to be transmitted
@@ -73,6 +73,7 @@ void loop()
     if(!digitalRead(2))                    // If pin 2 is low, read receive buffer
     {
       CAN0.readMsgBuf(&rxId, &len, rxBuf); // Read data: len = data length, buf = data byte(s)
+      if (rxId == 0x366 || rxId == 0x36B || rxId == 0x3F9 || rxId == 0x44C || rxId == 0x438) {
       Serial.print("ID: ");
       Serial.print(rxId, HEX);
       Serial.print(" Data: ");
@@ -85,7 +86,7 @@ void loop()
         Serial.print(rxBuf[i], HEX);
         Serial.print(" ");
       }
-      Serial.println();
+      Serial.println(); }
     }
 }
 

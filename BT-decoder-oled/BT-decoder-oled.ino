@@ -1,7 +1,14 @@
-
+#include <SoftwareSerial.h>
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+
+#define CLK 2
+#define DIO 3
+#define BT_TX 6
+#define BT_RX 5
+
+SoftwareSerial bt = SoftwareSerial(BT_RX, BT_TX);
 
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 64 // OLED display height, in pixels
@@ -10,6 +17,21 @@
 #define SCREEN_ADDRESS 0x3C ///< See datasheet for Address; 0x3D for 128x64, 0x3C for 128x32
 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+
+const unsigned char recvBufSize = 9;
+unsigned short int range; // 0 ~ 65535
+unsigned char gear;       // 0 ~ 255
+char mode = 1;
+char string[recvBufSize];
+char tpms_string[12];
+float psi[4];
+bool enable = 1;
+
+void displayWelcome();
+void displayTPMS();
+void displayRangeTemp();
+void displayMisc();
+void parseTPMS();
 
 static const unsigned char PROGMEM fuel_icon [] = {
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -22,7 +44,7 @@ static const unsigned char PROGMEM fuel_icon [] = {
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 
-static const unsigned char PROGMEM temp [] = {
+static const unsigned char PROGMEM temp_icon [] = {
 0x00, 0x00, 0x00, 0x00, 0x00, 0x78, 0x00, 0x00, 0x00, 0xFC, 0x00, 0x00, 0x00, 0xFC, 0x00, 0x00,
 0x7E, 0xFC, 0x00, 0x00, 0x00, 0xFC, 0x0F, 0x8E, 0x0E, 0xFC, 0x19, 0xCA, 0x00, 0xFC, 0x70, 0xCE,
 0x7E, 0xFC, 0x60, 0x00, 0x00, 0xFC, 0x60, 0x00, 0x0E, 0xEC, 0x60, 0x00, 0x00, 0xCC, 0x60, 0x00,
@@ -123,25 +145,93 @@ static const unsigned char PROGMEM axle [] = {
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 
-char slogan;
-
 void setup() {
   Serial.begin(9600);
-  randomSeed(analogRead(0));
-  slogan = random(4);
+  bt.begin(9600);
 
   if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
-    Serial.println(F("SSD1306 allocation failed"));
+    //Serial.println(F("SSD1306 allocation failed"));
     for(;;); // Don't proceed, loop forever
   }
+  display.clearDisplay();
+  display.display();
+  displayWelcome();
+  delay(1E3);
+  //delay(5E3);
+  //displayTPMS(0, 0, 0, 0);
+}
 
+void loop() {
+  if (bt.available() > 0) {
+    //==============[ FILL BUFFER ]==============//
+    if (bt.peek() == 'T') {
+      for (int i = 0; i < 12; i++) {
+        tpms_string[i] = bt.read();
+        delay(1);
+      }
+    } else {
+      for (int i = 0; i < recvBufSize; i++) {
+        string[i] = bt.read();
+        delay(1);
+      }
+    }
+    
+    //==============[ SHOW BUFFER ]==============//
+    Serial.print("Received: ");
+    for (int j = 0; j < recvBufSize; j++) {
+      Serial.print(string[j]);
+    }
+    Serial.println();
+    //================[ PARSING ]================//
+    //Serial.println(strtol(string, NULL, 16)); // for hexadecimal
+    if (string[0] == 'R') {
+      range = atoi(&string[1]); //ignore first character and parse the rest into (int) range
+      Serial.print("range: ");
+      Serial.println(range);
+    }
+    if (string[0] == 'G') {
+      gear = strtol(&string[1], NULL, 16);
+      Serial.print("gear: ");
+      Serial.println(gear);
+      if (gear == 0x20) {
+        Serial.println("IGNITION");
+        enable = 1;
+      }
+    }
+    if (string[0] == 'D') {
+      mode++;
+      if (mode == 3) mode = 0;
+      Serial.print("mode: ");
+      Serial.println(mode, DEC);
+    }
+  }
+  //================[ MAIN LOOP ]================//
+  if (enable) {
+    switch (mode) {
+      case 0:
+        displayRangeTemp(range, 0);
+        break;
+      case 1:
+        parseTPMS(tpms_string, psi);
+        displayTPMS(psi[0], psi[1], psi[2], psi[3]);
+        break;
+      case 2:
+        displayMisc(gear);
+        break;
+    }
+  }
+
+}
+
+void displayWelcome() {
+  randomSeed(analogRead(0));
+  char slogan = random(4);
   display.clearDisplay();
   display.drawBitmap(27, 8, MINI, 80, 32, 1);
   display.display();
-  delay(1E3);
+  delay(500);
   display.setTextColor(WHITE);
   display.setTextSize(1);
-  
   switch (slogan) {
     case 0: 
       display.setCursor(32, 50);
@@ -162,60 +252,42 @@ void setup() {
     default:
       break;
   }
-
   display.display();
-  delay(5E3);
-  display.clearDisplay();
-  
-  //for (int i = 0; i < 128; i++) {
-  //  display.clearDisplay();
-  //  display.drawBitmap(0, 0, axle_thin, i, 64, 1);
-  //  display.display();
-  //  delay(100);
-  //}
-  displayPage1();
-  delay(5E3);
+}
+
+void displayTPMS(float FL, float FR, float RL, float RR) {
   display.clearDisplay();
   display.drawBitmap(0, 0, axle, 128, 64, 1);
-  displayTPMS();
-
-  
-  
-}
-
-void loop() {
-    
-}
-
-void displayTPMS() {
   display.setTextColor(WHITE);
-  display.setTextSize(1);
-  //display.setCursor(30, 30);
-  //display.println("TIRE PRESSURE");
-
   display.setTextSize(2);
   display.setCursor(0, 0);
-  display.println("----");
+  if (FL) display.println(FL, 1);
+  else display.println("----"); 
   display.setCursor(80, 0);
-  display.println("32.1");
+  if (FR) display.println(FR, 1);
+  else display.println("----"); 
   display.setCursor(0, 50);
-  display.println("29.8");
+  if (RL) display.println(RL, 1);
+  else display.println("----"); 
   display.setCursor(80, 50);
-  display.println("----");
-  
+  if (RR) display.println(RR, 1);
+  else display.println("----"); 
   display.display();
 }
 
-void displayPage1() {
+void displayRangeTemp(unsigned short int range, char temp) {
+  display.clearDisplay();
+  // Range
   display.drawBitmap(0, 0, fuel_icon, 32, 32, 1);
   display.setTextSize(2);
   display.setCursor(43, 10);
-  display.println("328mi");
-
-  display.drawBitmap(0, 35, temp, 32, 32, 1);
+  display.print(range);
+  display.println("mi");
+  // Oil temperature
+  display.drawBitmap(0, 35, temp_icon, 32, 32, 1);
   display.setCursor(43, 40);
   display.println("OK");
-
+  // Delta since last range update
   display.setTextSize(1);
   display.setCursor(103, 15);
   display.print("-9");
@@ -223,5 +295,34 @@ void displayPage1() {
   display.display();
 }
 
+void displayMisc(unsigned char gear) {
+  display.clearDisplay();
+  display.setCursor(10, 10);
+  display.setTextSize(3);
+  if (gear >= 5 && gear <= 10) {  // M gears
+      //display.print("G");
+      display.println(gear-4);
+    } else
+    if (gear == 1) display.println("N"); // neutral
+    else
+    if (gear == 2) display.println("R"); // reverse
+    else
+    if (gear == 3) display.println("P"); // ignition off in park
+    else
+    if (gear == 35) display.println("ON"); // ignition on in park
+    else
+    if (gear == 37 || gear == 0) display.println("-"); // engine stop from start/stop
+    else display.println("?");
+    display.display();
+}
 
+void parseTPMS(char str[], float out[] ) {
+  char *tokenPtr = strtok(&str[1], "P");
 
+  for (int i = 0; tokenPtr != NULL; i++) {
+    if (str[1] == 'F') out[i] = 0;
+    else out[i] = atoi(tokenPtr) * 0.1 + 25.6;
+    
+    tokenPtr = strtok(NULL, "P");
+  }
+}

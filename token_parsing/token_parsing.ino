@@ -1,9 +1,8 @@
 #include <string.h>
 #include <stdlib.h>
 
-char str[80] = "T120P129P144P96";
+char str[80] = "T95P121P144P96";
 float psi[4];
-char *token;
 //short i = 0;
 float pressure;
 
@@ -12,22 +11,21 @@ void setup() {
 }
 
 void loop() {
-  token = strtok(&str[1], "P");
-  /*while(token != NULL) {
-        //Serial.println(atoi(token));
-        psi[i] = atoi(token) * 0.1 + 25.6;
-        token = strtok(NULL, "P");
-        i++;
-    }*/
   
-  for (int i = 0; token != NULL; i++) {
-    psi[i] = atoi(token) * 0.1 + 25.6;
-    token = strtok(NULL, "P");
-  }
+  parseTPMS(str, psi);
 
   for (int i = 0; i < 4; i++) {
     Serial.println(psi[i]);
   }
   Serial.println();
   delay(1E3);
+}
+
+void parseTPMS(char str[], float out[] ) {
+  char *tokenPtr = strtok(&str[1], "P");
+
+  for (int i = 0; tokenPtr != NULL; i++) {
+    out[i] = atoi(tokenPtr) * 0.1 + 25.6;
+    tokenPtr = strtok(NULL, "P");
+  }
 }
