@@ -1,5 +1,5 @@
 /*
-Version 8 is a prototype that is not functional
+Version 9 is a new prototype with a buffer system that fires data over bluetooth every 500ms.
 */
 
 #include <mcp_can.h>
@@ -10,13 +10,21 @@ long unsigned int rxId;
 unsigned char len = 0;
 unsigned char rxBuf[8];
 
-char txBuf[12];
+char rangeTx[5];
+char gearTx[4];
+char oilTx[4];
+char TPMSTx[14];
+char ignTx[3] = "I0";
+
 
 unsigned long lastTime_phone = 0;
 unsigned long timeDiff_phone = 0;
 
 unsigned long lastTime_dict = 0;
 unsigned long timeDiff_dict = 0;
+
+unsigned long currTimeTx = 0;
+const short int txInterval = 250;
 
 bool disableFlag = false;
 bool timeoutEnable = false;
@@ -27,7 +35,7 @@ bool listenOnly = 0;  // ALWAYS 1 for when in the car
 short int range = 0;
 short int lastRange = 0;
 short int rangeDelta = 0;
-bool ignitionSent = 0;
+bool ignitionFlag = 0;
 char lastGear = 0;
 short int lastOilTemp = 0;
 
@@ -49,6 +57,7 @@ void setup() {
   bt.begin(9600);
   if (CAN0.begin(MCP_STDEXT, CAN_500KBPS, MCP_8MHZ) == CAN_OK) Serial.print("MCP2515 Init Success\r\n");
   else Serial.print("MCP2515 Init Failed\r\n");
+  
 
   pinMode(MCP2515_INT_PIN, INPUT);  // Setting pin 2 for /INT input
   pinMode(PHONE_FLAG_PIN, OUTPUT);
@@ -75,6 +84,7 @@ void setup() {
   Use MCP_NORMAL for debugging and MCP_LISTENONLY for use in car. My analyzer will spam the message until it receives an ACK from MCP2515, hence slow response.
   Do not want to transmit anything on car's bus, so use LISTENONLY for final integration.
   */
+  //sprintf(ignTx, "I0");
 }
 
 void loop() {
@@ -126,34 +136,25 @@ void loop() {
     if (rxId == 0x366) {  // bypasses all checks. if it gets range data (0x366), always process it. used to be inside matchAndSet
       range = (rxBuf[2] << 4) | (rxBuf[1] >> 4);
       if (debug) {
+        Serial.print("Range: ");
         Serial.print(range, HEX);
         Serial.print(" = ");
         Serial.print(range);
         Serial.println("mi");
       }
-      // do stuff with range here
       rangeDelta = range - lastRange;
-      //if (range != lastRange) { //UNCOMMENT THIS
-      //bt.print("R");
-      //bt.print(range);
-      memset(txBuf, 0, sizeof txBuf);
-      sprintf(txBuf, "R%d", range);
-      bt.print(txBuf);
-      //}
+
+      sprintf(rangeTx, "%d", range);
+      
       lastRange = range;
     }
     //==============[ IGNITION STATUS ]==============//
-    /*if (rxId == 0x438) {
-        /*if (((rxBuf[3] == 0x30) || (rxBuf[3] == 0x00)) && ignitionSent == 0) {
-          if (debug) Serial.println("IGNITION SENT");
-          bt.print("I");
-          ignitionSent = 1;
+    if (rxId == 0x438) {
         if ((rxBuf[3] == 0x30) || (rxBuf[3] == 0x00)) {
           if (debug) Serial.println("IGNITION SENT");
-          bt.print("I");
+          sprintf(ignTx, "I1");
         }
-      }*/
-
+    }
     //==============[ GEAR ]==============//
     if (rxId == 0x3F9) {
       if (debug) {
@@ -161,45 +162,38 @@ void loop() {
         Serial.println(rxBuf[6], HEX);
       }
       if (rxBuf[6] != lastGear) {
-        //bt.print("G");
-        //bt.print(rxBuf[6], HEX);
-        //Serial.println("GEAR SENT");
-        memset(txBuf, 0, sizeof txBuf);
-        sprintf(txBuf, "G%02X", rxBuf[6]);
-        bt.print(txBuf);
+
+        sprintf(gearTx, "G%02X", rxBuf[6]);
         lastGear = rxBuf[6];
       }
     }
 
     //==============[ OIL TEMP ]==============//
     if (rxId == 0x3F9) {
-      //if (debug) { Serial.print("Gear: "); Serial.println(rxBuf[6], HEX); }
+      if (debug) {
+        Serial.print("Oil Temp: ");
+        Serial.println(rxBuf[5], HEX);
+      }
       if (rxBuf[5] != lastOilTemp) {
-        //bt.print("G");
-        //bt.print(rxBuf[6], HEX);
-        //Serial.println("OIL TEMP SENT");
-        memset(txBuf, 0, sizeof txBuf);
-        sprintf(txBuf, "O%02X", rxBuf[5]);
-        bt.print(txBuf);
+
+        sprintf(oilTx, "O%02X", rxBuf[5]);
         lastOilTemp = rxBuf[5];
       }
     }
 
     //==============[ TPMS ]==============//
     if (rxId == 0x36B) {  // TPMS
-      if (debug) Serial.println("TPMS SENT");
-      /*(Serial.print("T");
+      if (debug) {
+        Serial.print("T");
         Serial.print(rxBuf[0], HEX);
-        Serial.print(" P");
+        Serial.print("P");
         Serial.print(rxBuf[2], HEX);
-        Serial.print(" P");
+        Serial.print("P");
         Serial.print(rxBuf[4], HEX);
-        Serial.print(" P");
-        Serial.println(rxBuf[6], HEX);*/
-
-      memset(txBuf, 0, sizeof txBuf);
-      sprintf(txBuf, "T%02XP%02XP%02XP%02X", rxBuf[0], rxBuf[2], rxBuf[4], rxBuf[6]);
-      bt.print(txBuf);
+        Serial.print("P");
+        Serial.println(rxBuf[6], HEX);
+      }
+      sprintf(TPMSTx, "T%02XP%02XP%02XP%02XP", rxBuf[0], rxBuf[2], rxBuf[4], rxBuf[6]);
     }
 
     //==============[ DICTATION BUTTON ]==============//
@@ -210,11 +204,23 @@ void loop() {
           Serial.print("Dictation button pressed. ms since last press: ");
           Serial.println(timeDiff_dict);
         }
-        bt.print("D");
+        bt.print("DDDD");
         lastTime_dict = millis();
       }
     }
   }
+  //=============[ MAIN LOOP ]=============// 
+
+  if (millis() >= currTimeTx + txInterval) {
+    currTimeTx += txInterval;
+    bt.print(rangeTx);
+    bt.print(gearTx);
+    bt.print(oilTx);
+    bt.print(ignTx);
+    bt.print(TPMSTx);
+    bt.print("\n");
+  }
+
 }
 
 void matchAndSet(long unsigned int id, unsigned char buf[], bool flag, unsigned long &time) {
