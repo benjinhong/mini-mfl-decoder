@@ -1,5 +1,5 @@
 /*
-Version 5 is the latest working version without OLED splash screen. Includes (basic) range logic. Direct pin control.
+Version 7 is the latest working version without OLED splash screen. Includes (basic) range logic. Direct pin control. Bluetooth was added but not used since recevier has not been built yet.
 */
 
 #include <mcp_can.h>
@@ -88,11 +88,12 @@ void loop() {
             Serial.println(timeDiff_phone);
         }
     }
-
+    
     if(!digitalRead(2))                    // If pin 2 is low, read receive buffer
     {
       CAN0.readMsgBuf(&rxId, &len, rxBuf); // Read data: len = data length, buf = data byte(s)
       //printData(rxId, len, rxBuf);
+      //==============[ SET/CLEAR IGNORE FLAGS OR MATCH-AND-SET (MUSIC ONLY) ]==============//
       if (disableFlag) {
         if ((rxId == 0x44C) && (rxBuf[0] == 0x10)) {
             disableFlag = false;
@@ -116,21 +117,21 @@ void loop() {
             matchAndSet(rxId, rxBuf, disableFlag, lastTime_phone);  // normal command parsing
         }
       }
+      //==============[ ALL OTHER DATA TO PROCESS ]==============//
 
+      //==============[ RANGE ]==============//
       if (rxId == 0x366) {  // bypasses all checks. if it gets range data (0x366), always process it. used to be inside matchAndSet
         range = (rxBuf[2] << 4) | (rxBuf[1] >> 4);
         if (debug) { Serial.print(range, HEX); Serial.print(" = "); Serial.print(range); Serial.println("mi"); }
         // do stuff with range here
-
         rangeDelta = range - lastRange;
         if (range != lastRange) {
           bt.print("R");
           bt.print(range);
         }
-        
         lastRange = range;
       }
-
+      //==============[ IGNITION STATUS ]==============//
       /*if (rxId == 0x438) {
         /*if (((rxBuf[3] == 0x30) || (rxBuf[3] == 0x00)) && ignitionSent == 0) {
           if (debug) Serial.println("IGNITION SENT");
@@ -142,16 +143,17 @@ void loop() {
         }
       }*/
 
-      if (rxId == 0x3F9) {  // gear
+      //==============[ GEAR ]==============//
+      if (rxId == 0x3F9) {  
         if (debug) { Serial.print("Gear: "); Serial.println(rxBuf[6], HEX); }
         if (rxBuf[6] != lastGear) {
           bt.print("G");
           bt.print(rxBuf[6], HEX);
           lastGear = rxBuf[6];
         }
-        
       }
 
+      //==============[ TPMS ]==============//
       if (rxId == 0x36B) {  // TPMS
         if (debug) Serial.println("TPMS SENT");
         bt.print("T");
@@ -163,7 +165,8 @@ void loop() {
         bt.print("P");
         bt.print(rxBuf[6], HEX);
       }
-
+      
+      //==============[ DICTATION BUTTON ]==============//
       if ((rxId == 0x1D6) && (rxBuf[1] == 0xF1)) {  // dictation button
         timeDiff_dict = abs(millis() - lastTime_dict); //debouncing logic
         if (timeDiff_dict > 250) { //must be at least 250ms since last press

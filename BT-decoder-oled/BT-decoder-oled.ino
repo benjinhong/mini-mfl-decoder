@@ -18,21 +18,6 @@ SoftwareSerial bt = SoftwareSerial(BT_RX, BT_TX);
 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
-const unsigned char recvBufSize = 9;
-unsigned short int range; // 0 ~ 65535
-unsigned char gear;       // 0 ~ 255
-char mode = 1;
-char string[recvBufSize];
-char tpms_string[12];
-float psi[4];
-bool enable = 1;
-
-void displayWelcome();
-void displayTPMS();
-void displayRangeTemp();
-void displayMisc();
-void parseTPMS();
-
 static const unsigned char PROGMEM fuel_icon [] = {
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x7F, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x09, 0x80,
@@ -145,8 +130,23 @@ static const unsigned char PROGMEM axle [] = {
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 
+const unsigned char recvBufSize = 12; //12
+unsigned short int range; // 0 ~ 65535
+unsigned char gear;       // 0 ~ 255
+unsigned char oilTemp;    // 0 ~ 255
+char mode = 0;
+char string[recvBufSize];
+float psi[4];
+bool enable = 1;
+
+void displayWelcome();
+void displayTPMS();
+void displayRangeTemp();
+void displayMisc();
+void parseTPMS();
+
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
   bt.begin(9600);
 
   if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
@@ -163,17 +163,10 @@ void setup() {
 
 void loop() {
   if (bt.available() > 0) {
+    Serial.println(bt.available());
     //==============[ FILL BUFFER ]==============//
-    if (bt.peek() == 'T') {
-      for (int i = 0; i < 12; i++) {
-        tpms_string[i] = bt.read();
-        delay(1);
-      }
-    } else {
-      for (int i = 0; i < recvBufSize; i++) {
-        string[i] = bt.read();
-        delay(1);
-      }
+    for (int i = 0; i < recvBufSize; i++) {
+      string[i] = bt.read();
     }
     
     //==============[ SHOW BUFFER ]==============//
@@ -204,15 +197,33 @@ void loop() {
       Serial.print("mode: ");
       Serial.println(mode, DEC);
     }
+    if (string[0] == 'O') {
+      oilTemp = strtol(&string[1], NULL, 16) - 48;
+      Serial.print("oilTemp: ");
+      Serial.println(oilTemp);
+    }
+
+    //TEST
+    if (string[0] == 'T') {
+      parseTPMS(string, psi);
+      Serial.print(psi[0]);
+      Serial.print(" ");
+      Serial.print(psi[1]);
+      Serial.print(" ");
+      Serial.print(psi[2]);
+      Serial.print(" ");
+      Serial.println(psi[3]);
+    }
+
   }
   //================[ MAIN LOOP ]================//
   if (enable) {
     switch (mode) {
       case 0:
-        displayRangeTemp(range, 0);
+        displayRangeTemp(range, oilTemp);
         break;
       case 1:
-        parseTPMS(tpms_string, psi);
+        //parseTPMS(string, psi);
         displayTPMS(psi[0], psi[1], psi[2], psi[3]);
         break;
       case 2:
@@ -286,7 +297,7 @@ void displayRangeTemp(unsigned short int range, char temp) {
   // Oil temperature
   display.drawBitmap(0, 35, temp_icon, 32, 32, 1);
   display.setCursor(43, 40);
-  display.println("OK");
+  display.println(temp, DEC);
   // Delta since last range update
   display.setTextSize(1);
   display.setCursor(103, 15);
