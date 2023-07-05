@@ -164,7 +164,7 @@ void setup() {
 
 void loop() {
   if (bt.available() > 0) {
-    delay(recvBufSize);
+    delay(recvBufSize+1);
     //Serial.println(bt.available());
     //==============[ FILL BUFFER ]==============//
     for (int i = 0; i < recvBufSize; i++) {
