@@ -130,7 +130,7 @@ static const unsigned char PROGMEM axle [] = {
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 
-const unsigned char recvBufSize = 26; //12
+const unsigned char recvBufSize = 27; //12
 unsigned short int range; // 0 ~ 65535
 unsigned char gear;       // 0 ~ 255
 unsigned char oilTemp;    // 0 ~ 255
@@ -138,7 +138,7 @@ char mode = 0;
 char string[recvBufSize];
 float psi[4];
 bool enable = 0;
-bool debug = 0;
+bool debug = 1;
 
 void displayWelcome();
 void displayTPMS();
@@ -296,7 +296,7 @@ void displayTPMS(float FL, float FR, float RL, float RR) {
   display.display();
 }
 
-void displayRangeTemp(unsigned short int range, char temp) {
+void displayRangeTemp(unsigned short int range, unsigned char temp) {
   display.clearDisplay();
   // Range
   display.drawBitmap(0, 0, fuel_icon, 32, 32, 1);
@@ -307,11 +307,12 @@ void displayRangeTemp(unsigned short int range, char temp) {
   // Oil temperature
   display.drawBitmap(0, 35, temp_icon, 32, 32, 1);
   display.setCursor(43, 40);
-  display.println(temp, DEC);
+  display.print(temp, DEC);
+  display.println("C");
   // Delta since last range update
-  display.setTextSize(1);
-  display.setCursor(103, 15);
-  display.print("-9");
+  //display.setTextSize(1);
+  //display.setCursor(103, 15);
+  //display.print("-9");
   
   display.display();
 }
