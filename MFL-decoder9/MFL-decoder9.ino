@@ -10,10 +10,10 @@ long unsigned int rxId;
 unsigned char len = 0;
 unsigned char rxBuf[8];
 
-char rangeTx[5];
-char gearTx[4];
-char oilTx[4];
-char TPMSTx[14];
+char rangeTx[5] = "R000";
+char gearTx[4] = "G00";
+char oilTx[4] = "O00";
+char TPMSTx[14] = "T00P00P00P00P";
 char ignTx[3] = "I0";
 
 
@@ -31,7 +31,7 @@ bool timeoutEnable = false;
 int buttonDelay = 130;
 
 bool debug = 1;
-bool listenOnly = 0;  // ALWAYS 1 for when in the car
+bool listenOnly = 1;  // ALWAYS 1 for when in the car
 short int range = 0;
 short int lastRange = 0;
 short int rangeDelta = 0;
@@ -151,8 +151,12 @@ void loop() {
     //==============[ IGNITION STATUS ]==============//
     if (rxId == 0x438) {
         if ((rxBuf[3] == 0x30) || (rxBuf[3] == 0x00)) {
-          if (debug) Serial.println("IGNITION SENT");
+          if (debug) Serial.println("IGNITION ON SENT");
           sprintf(ignTx, "I1");
+        }
+        if (rxBuf[3] == 0x3D) {
+          if (debug) Serial.println("IGNITION OFF SENT");
+          sprintf(ignTx, "I0");
         }
     }
     //==============[ GEAR ]==============//

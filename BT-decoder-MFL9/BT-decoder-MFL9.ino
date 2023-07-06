@@ -319,8 +319,8 @@ void displayRangeTemp(unsigned short int range, unsigned char temp) {
 
 void displayMisc(unsigned char gear) {
   display.clearDisplay();
-  display.setCursor(10, 10);
-  display.setTextSize(3);
+  display.setCursor(45, 10);
+  display.setTextSize(4);
   if (gear >= 5 && gear <= 10) {  // M gears
       //display.print("G");
       display.println(gear-4);
