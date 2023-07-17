@@ -137,7 +137,7 @@ unsigned char startupAnim[] =     {0x00, 0x00, 0x00, 0x00};
 const unsigned char border[] =       {0x39, 0x09, 0x09, 0x0F};
 const unsigned char clear[] =     {0x00, 0x00, 0x00, 0x00};
 
-const unsigned char recvBufSize = 34; //27
+const unsigned char recvBufSize = 40; //27
 unsigned short int range; // 0 ~ 65535
 unsigned char gear;       // 0 ~ 255
 unsigned char oilTemp;    // 0 ~ 255
@@ -153,7 +153,7 @@ char mode = 0;
 char string[recvBufSize];
 float psi[4];
 bool enable = 0;
-bool debug = 1;
+bool debug = 0;
 
 void displayWelcome();
 void displayTPMS();
@@ -231,13 +231,13 @@ void loop() {
       }
 
       if (debug) {
-        Serial.print("Range (i): ");
+        Serial.print(F("Range (i): "));
         Serial.println(range);
-        Serial.print("Gear (i): ");
+        Serial.print(F("Gear (i): "));
         Serial.println(gear);
-        Serial.print("Oil (C): ");
+        Serial.print(F("Oil (C): "));
         Serial.println(oilTemp);
-        Serial.print("Speed (MPH): ");
+        Serial.print(F("Speed (MPH): "));
         Serial.println(speed);
       }
 
@@ -394,13 +394,11 @@ void displaySegments(unsigned char gear, unsigned char speed) {
   if (gear >= 5 && gear <= 10) {  // M gears
       segmentArray[3] = segment.encodeDigit(gear-4);
     } else
-    if (gear == 1) segmentArray[3] = 0x54; // neutral
+    if (gear == 1 || gear == 33) segmentArray[3] = 0x54; // neutral
     else
-    if (gear == 2) segmentArray[3] = 0x50; // reverse
+    if (gear == 2 || gear == 34) segmentArray[3] = 0x50; // reverse
     else
-    if (gear == 3) segmentArray[3] = 0x73; // ignition off in park
-    else
-    if (gear == 35) segmentArray[3] = 0x73; // ignition on in park
+    if (gear == 35 || gear == 3 || gear == 99) segmentArray[3] = 0x73; // park
     else
     if (gear == 37 || gear == 0) segmentArray[3] = 0x40; // engine stop from start/stop
 

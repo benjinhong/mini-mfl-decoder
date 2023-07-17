@@ -31,8 +31,8 @@ bool disableFlag = false;
 bool timeoutEnable = false;
 int buttonDelay = 130;
 
-bool debug = 1;
-bool listenOnly = 0;  // ALWAYS 1 for when in the car
+bool debug = 0;
+bool listenOnly = 1;  // ALWAYS 1 for when in the car
 short int range = 0;
 short int lastRange = 0;
 short int rangeDelta = 0;
