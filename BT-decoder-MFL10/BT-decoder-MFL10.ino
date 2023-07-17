@@ -137,7 +137,7 @@ unsigned char startupAnim[] =     {0x00, 0x00, 0x00, 0x00};
 const unsigned char border[] =       {0x39, 0x09, 0x09, 0x0F};
 const unsigned char clear[] =     {0x00, 0x00, 0x00, 0x00};
 
-const unsigned char recvBufSize = 27; //12
+const unsigned char recvBufSize = 34; //27
 unsigned short int range; // 0 ~ 65535
 unsigned char gear;       // 0 ~ 255
 unsigned char oilTemp;    // 0 ~ 255
@@ -153,7 +153,7 @@ char mode = 0;
 char string[recvBufSize];
 float psi[4];
 bool enable = 0;
-bool debug = 0;
+bool debug = 1;
 
 void displayWelcome();
 void displayTPMS();
@@ -211,7 +211,6 @@ void loop() {
       token = strtok(string, "G");
       range = atoi(token);                        // int to int
       
-
       token = strtok(NULL, "O");                
       gear = strtol(token, NULL, 16);             // hex to int  
       
@@ -300,19 +299,19 @@ void displayWelcome() {
   switch (slogan) {
     case 0: 
       display.setCursor(32, 50);
-      display.println("SMALL WINS.");
+      display.println(F("SMALL WINS."));
       break;
     case 1:
       display.setCursor(23, 50);
-      display.println("FOR THE DRIVE.");
+      display.println(F("FOR THE DRIVE."));
       break;
     case 2:
       display.setCursor(26, 50);
-      display.println("KEEP IT WILD.");
+      display.println(F("KEEP IT WILD."));
       break;
     case 3:
       display.setCursor(29, 50);
-      display.println("LET'S MOTOR.");
+      display.println(F("LET'S MOTOR."));
       break;
     default:
       break;
@@ -399,9 +398,9 @@ void displaySegments(unsigned char gear, unsigned char speed) {
     else
     if (gear == 2) segmentArray[3] = 0x50; // reverse
     else
-    if (gear == 3) segmentArray[3] = 0x40; // ignition off in park
+    if (gear == 3) segmentArray[3] = 0x73; // ignition off in park
     else
-    if (gear == 35) segmentArray[3] = 0x40; // ignition on in park
+    if (gear == 35) segmentArray[3] = 0x73; // ignition on in park
     else
     if (gear == 37 || gear == 0) segmentArray[3] = 0x40; // engine stop from start/stop
 
