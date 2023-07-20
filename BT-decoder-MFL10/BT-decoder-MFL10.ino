@@ -202,7 +202,8 @@ void loop() {
     
     //================[ PARSING ]================//
     
-    if (string[0] == 'D' || string[1] == 'D') {
+    if (string[0] == 'D' || string[1] == 'D' || string[28] == 'D') {        // the check at index 28 is there because 'D' sometimes shows up
+                                                                            // (depending on when pressed) at the end of a normal response string.
       mode++;
       if (mode == 2) mode = 0;
 
@@ -283,6 +284,9 @@ void loop() {
     
     displaySegments(gear, speedDelayed);  // constantly update 7 segment
         
+  } else {
+    // do when ignition is 0
+    //segment.setSegments(clear);
   }
 
 }
