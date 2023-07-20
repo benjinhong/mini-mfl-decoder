@@ -176,16 +176,16 @@ void loop() {
       }
     }
 
-    //==============[ OIL TEMP ]==============//
+    //==============[ OIL TEMP ]==============// byte 5 = oil, byte 4 = water (obd?)
     if (rxId == 0x3F9) {
       if (debug) {
         Serial.print("Oil Temp: ");
-        Serial.println(rxBuf[5], HEX);
+        Serial.println(rxBuf[4], HEX);
       }
-      if (rxBuf[5] != lastOilTemp) {
+      if (rxBuf[4] != lastOilTemp) {
 
-        sprintf(oilTx, "O%02X", rxBuf[5]);
-        lastOilTemp = rxBuf[5];
+        sprintf(oilTx, "O%02X", rxBuf[4]);
+        lastOilTemp = rxBuf[4];
       }
     }
 
