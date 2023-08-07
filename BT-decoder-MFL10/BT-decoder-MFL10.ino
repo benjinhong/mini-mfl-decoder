@@ -143,6 +143,7 @@ unsigned char gear;       // 0 ~ 255
 unsigned char oilTemp;    // 0 ~ 255
 unsigned char speed;      // 0 ~ 255
 unsigned char speedDelayed;
+unsigned short int brightness;
 
 unsigned long currTimeSpeed = 0;
 const short int speedDelay = 500;
@@ -251,6 +252,7 @@ void loop() {
     }
   }
   //=============[ MAIN LOOP ]=============//
+  brightness = analogRead(0);
   if (enable) {
     if (segmentStartup != 1) {
       for (int i = 0; i < 4; i++) {
@@ -292,7 +294,7 @@ void loop() {
 }
 
 void displayWelcome() {
-  randomSeed(analogRead(0));
+  randomSeed(analogRead(1));
   char slogan = random(4);
   display.clearDisplay();
   display.drawBitmap(27, 8, MINI, 80, 32, 1);
