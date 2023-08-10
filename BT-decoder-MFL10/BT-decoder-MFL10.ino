@@ -146,6 +146,8 @@ unsigned char speedDelayed;
 unsigned short int brightness;
 
 unsigned long currTimeSpeed = 0;
+unsigned long currTimeBrightness = 0;
+const short int brightnessUpdateFreq = 1000;
 const short int speedDelay = 500;
 
 bool segmentStartup = 0;
@@ -203,7 +205,7 @@ void loop() {
     
     //================[ PARSING ]================//
     
-    if (string[0] == 'D' || string[1] == 'D' || string[28] == 'D') {        // the check at index 28 is there because 'D' sometimes shows up
+    if (string[0] == 'D' || string[1] == 'D' || string[30] == 'D') {        // the check at index 28 is there because 'D' sometimes shows up
                                                                             // (depending on when pressed) at the end of a normal response string.
       mode++;
       if (mode == 2) mode = 0;
@@ -252,7 +254,12 @@ void loop() {
     }
   }
   //=============[ MAIN LOOP ]=============//
-  brightness = analogRead(0);
+  if (millis() >= currTimeBrightness + brightnessUpdateFreq) {
+      currTimeBrightness += brightnessUpdateFreq;
+      brightness = map(analogRead(A0), 0, 512, 0, 6);
+      segment.setBrightness(brightness);
+      //Serial.println(brightness);
+    }
   if (enable) {
     if (segmentStartup != 1) {
       for (int i = 0; i < 4; i++) {
