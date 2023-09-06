@@ -256,9 +256,9 @@ void loop() {
   //=============[ MAIN LOOP ]=============//
   if (millis() >= currTimeBrightness + brightnessUpdateFreq) {
       currTimeBrightness += brightnessUpdateFreq;
-      brightness = map(analogRead(A0), 0, 512, 0, 6);
+      brightness = map(analogRead(A0), 50, 512, 0, 6);             // used to be 0, 512, 0, 6. raised floor to 50 because it oscillates between light levels when its still bright outside.
       segment.setBrightness(brightness);
-      //Serial.println(brightness);
+      //Serial.println(analogRead(A0));
     }
   if (enable) {
     if (segmentStartup != 1) {
